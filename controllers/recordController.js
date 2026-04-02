@@ -1,10 +1,10 @@
 import { getPrismaClient } from '../config/db.js';
 
-export const createRecord = async (req, res) => {
+export const createRecord = async (req, res, next) => {
   try {
     const prisma = getPrismaClient();
     const { amount, type, category, date, notes } = req.body;
-    const userId = req.user.userId; 
+    const userId = req.user.userId;
 
     const record = await prisma.financialRecord.create({
       data: {
@@ -19,33 +19,52 @@ export const createRecord = async (req, res) => {
 
     res.status(201).json({ message: 'Record created successfully', record });
   } catch (error) {
-    console.error('Create record error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getRecords = async (req, res) => {
+export const getRecords = async (req, res, next) => {
   try {
     const prisma = getPrismaClient();
-    const { type, category } = req.query; 
+    const { type, category, page = 1, limit = 10, search } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
 
-    const filter = {};
-    if (type) filter.type = type;
-    if (category) filter.category = category;
+    const where = {
+      ...(type && { type }),
+      ...(category && { category }),
+      ...(search && {
+        OR: [
+          { notes: { contains: search, mode: 'insensitive' } },
+          { category: { contains: search, mode: 'insensitive' } }
+        ]
+      })
+    };
 
-    const records = await prisma.financialRecord.findMany({
-      where: filter,
-      orderBy: { date: 'desc' } 
+    const [records, total] = await Promise.all([
+      prisma.financialRecord.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        orderBy: { date: 'desc' }
+      }),
+      prisma.financialRecord.count({ where })
+    ]);
+
+    res.status(200).json({
+      records,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
+      }
     });
-
-    res.status(200).json(records);
   } catch (error) {
-    console.error('Get records error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateRecord = async (req, res) => {
+export const updateRecord = async (req, res, next) => {
   try {
     const prisma = getPrismaClient();
     const { id } = req.params;
@@ -64,12 +83,11 @@ export const updateRecord = async (req, res) => {
 
     res.status(200).json({ message: 'Record updated', record: updatedRecord });
   } catch (error) {
-    console.error('Update record error:', error);
-    res.status(500).json({ message: 'Failed to update record (check if ID exists)' });
+    next(error);
   }
 };
 
-export const deleteRecord = async (req, res) => {
+export const deleteRecord = async (req, res, next) => {
   try {
     const prisma = getPrismaClient();
     const { id } = req.params;
@@ -80,7 +98,6 @@ export const deleteRecord = async (req, res) => {
 
     res.status(200).json({ message: 'Record deleted successfully' });
   } catch (error) {
-    console.error('Delete record error:', error);
-    res.status(500).json({ message: 'Failed to delete record' });
+    next(error);
   }
 };

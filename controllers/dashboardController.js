@@ -1,6 +1,6 @@
 import { getPrismaClient } from '../config/db.js';
 
-export const getDashboardSummary = async (req, res) => {
+export const getDashboardSummary = async (req, res, next) => {
   try {
     const prisma = getPrismaClient();
 
@@ -44,7 +44,6 @@ export const getDashboardSummary = async (req, res) => {
       recentTransactions
     });
   } catch (error) {
-    console.error('Dashboard summary error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    next(error);
   }
 };

@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { getPrismaClient } from '../config/db.js';
 
-export const signup = async (req, res) => {
+export const signup = async (req, res, next) => {
   try {
     const prisma = getPrismaClient();
     const { name, email, password, role } = req.body;
@@ -46,12 +46,11 @@ export const signup = async (req, res) => {
       token
     });
   } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    next(error);
   }
 };
 
-export const login = async (req, res) => {
+export const login = async (req, res, next) => {
   try {
     const prisma = getPrismaClient();
     const { email, password } = req.body;
@@ -86,7 +85,6 @@ export const login = async (req, res) => {
       token
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    next(error);
   }
 };
