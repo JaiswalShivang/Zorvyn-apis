@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { connectRedis } from './config/redis.js';
+import redis from './config/redis.js';
 import authRoutes from './routes/authRoutes.js';
 import recordRoutes from './routes/recordRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
@@ -29,9 +29,8 @@ app.get('/', (req, res) => {
 
 app.use(errorHandler);
 
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
-  await connectRedis();
 });
 
 export default app;

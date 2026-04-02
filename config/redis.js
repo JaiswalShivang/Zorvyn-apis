@@ -1,18 +1,22 @@
 import Redis from 'ioredis';
 import 'dotenv/config';
 
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: 3,
-  lazyConnect: true
+const redisUrl = process.env.REDIS_URL;
+
+const redis = new Redis(redisUrl, {
+  connectTimeout: 10000,
+  maxRetriesPerRequest: 10,
+  tls: {
+    rejectUnauthorized: false
+  }
 });
 
-export const connectRedis = async () => {
-  try {
-    await redis.connect();
-    console.log('Redis connected');
-  } catch (error) {
-    console.warn('Redis connection failed, caching disabled');
-  }
-};
+redis.on('error', (err) => {
+  console.error('Redis connection issue:', err.message);
+});
+
+redis.on('connect', () => {
+  console.log('Connected to Upstash Redis!');
+});
 
 export default redis;
