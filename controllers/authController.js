@@ -1,13 +1,35 @@
+import 'dotenv/config';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '../generated/prisma/client.ts';
+import pg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../generated/prisma/client.ts';
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+const { Pool } = pg;
+let prisma;
+
+const getPrismaClient = () => {
+  if (prisma) {
+    return prisma;
+  }
+
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('Missing DATABASE_URL.');
+  }
+
+  const pool = new Pool({ connectionString });
+
+  const adapter = new PrismaPg(pool);
+
+  prisma = new PrismaClient({ adapter });
+  
+  return prisma;
+};
 
 export const signup = async (req, res) => {
   try {
+    const prisma = getPrismaClient();
     const { name, email, password, role } = req.body;
 
     const existingUser = await prisma.user.findUnique({
@@ -55,6 +77,7 @@ export const signup = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
+    const prisma = getPrismaClient();
     const { email, password } = req.body;
 
     const user = await prisma.user.findUnique({
