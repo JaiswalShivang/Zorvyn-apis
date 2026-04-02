@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/authRoutes.js';
 import recordRoutes from './routes/recordRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
@@ -8,6 +9,13 @@ import { errorHandler } from './middlewares/errorMiddleware.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: 'Too many requests, please try again later.' }
+});
+
+app.use(limiter);
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
