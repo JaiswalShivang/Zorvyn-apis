@@ -1,6 +1,6 @@
 # Zorvyn Finance Dashboard API
 
-A RESTful backend for a role-based finance dashboard. Built with Node.js, Express, Prisma ORM, and PostgreSQL.
+A RESTful backend for a role-based finance dashboard. Built with Node.js, Express, Prisma ORM, PostgreSQL, and Redis caching.
 
 ## Tech Stack
 
@@ -8,8 +8,10 @@ A RESTful backend for a role-based finance dashboard. Built with Node.js, Expres
 - **Framework:** Express v5
 - **ORM:** Prisma v7 (`prisma-client-js`)
 - **Database:** PostgreSQL
+- **Cache:** Redis (ioredis)
 - **Auth:** JSON Web Tokens (JWT) + bcrypt password hashing
 - **Adapter:** `@prisma/adapter-pg` with connection pooling via `pg.Pool`
+- **Rate Limiting:** express-rate-limit
 
 ## Role Hierarchy
 
@@ -23,10 +25,11 @@ A RESTful backend for a role-based finance dashboard. Built with Node.js, Expres
 
 ```
 ├── config/
-│   └── db.js                    # Shared Prisma client (singleton)
+│   ├── db.js                    # Shared Prisma client (singleton)
+│   └── redis.js                 # Redis client configuration
 ├── controllers/
 │   ├── authController.js        # Signup & login handlers
-│   ├── dashboardController.js   # Aggregated analytics
+│   ├── dashboardController.js   # Aggregated analytics (with Redis caching)
 │   └── recordController.js      # CRUD + pagination/search
 ├── middlewares/
 │   ├── authMiddleware.js        # JWT verification & role guard
@@ -36,9 +39,12 @@ A RESTful backend for a role-based finance dashboard. Built with Node.js, Expres
 │   ├── dashboardRoutes.js
 │   └── recordRoutes.js
 ├── prisma/
-│   └── schema.prisma            # Database schema
+│   ├── schema.prisma            # Database schema
+│   ├── migrations/              # Database migrations
+│   └── config.ts                # Prisma configuration
 ├── generated/
 │   └── prisma/                  # Auto-generated Prisma client
+├── prisma.config.ts             # Prisma CLI config
 ├── server.js                    # Entry point
 └── package.json
 ```
@@ -125,6 +131,8 @@ Create a `.env` file in the project root:
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE_NAME"
 JWT_SECRET="your_secure_random_secret"
 NODE_ENV="development"
+PORT=3000
+REDIS_URL="redis://localhost:6379"
 ```
 
 ### 3. Run Database Migrations
@@ -146,16 +154,26 @@ npx prisma generate
 ### 5. Start the Server
 
 ```bash
-# Development (auto-reload with nodemon)
-npm run dev
-
 # Production
 npm start
 ```
 
 Server runs on `http://localhost:3000` by default. Override with the `PORT` environment variable.
 
-## Assumptions
+## Features Implemented
+
+- **Authentication**: JWT-based auth with bcrypt password hashing
+- **Role-Based Access Control**: Admin, Analyst, and Viewer roles with hierarchical permissions
+- **CRUD Operations**: Full create, read, update, delete for financial records
+- **Pagination**: Configurable page/limit for record listing
+- **Search & Filtering**: Filter by type (INCOME/EXPENSE), category, and search on notes
+- **Dashboard Analytics**: Aggregated totals with category breakdowns
+- **Redis Caching**: Dashboard summary cached in Redis to optimize repeated calculations
+- **Rate Limiting**: 100 requests per 15 minutes to prevent abuse
+- **Error Handling**: Centralized middleware for consistent error responses
+- **Prisma with PostgreSQL**: Connection pooling via `@prisma/adapter-pg`
+
+## Design Decisions & Constraints
 
 1. **Viewers cannot access the Dashboard Summary.** Aggregated financial data is restricted to Analysts and Admins to limit exposure of organization-wide totals to lower-privilege users.
 
@@ -170,3 +188,5 @@ Server runs on `http://localhost:3000` by default. Override with the `PORT` envi
 6. **A single shared Prisma client instance is used.** The `config/db.js` singleton avoids creating multiple database connection pools during the application lifecycle.
 
 7. **The `amount` field uses `Decimal(18, 2)`.** Financial amounts are stored with 2 decimal places to avoid floating-point precision errors.
+
+8. **Redis is optional for dashboard caching.** If Redis is unavailable, the dashboard still works but without caching optimization.
