@@ -6,7 +6,27 @@ import { getPrismaClient } from '../config/db.js';
 export const signup = async (req, res, next) => {
   try {
     const prisma = getPrismaClient();
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
+    const userRole = 'VIEWER';
+
+    if (!name) {
+      return res.status(400).json({ message: 'Name is required' });
+    }
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
 
     const existingUser = await prisma.user.findUnique({
       where: { email }
@@ -24,7 +44,7 @@ export const signup = async (req, res, next) => {
         name,
         email,
         passwordHash,
-        role: role || 'VIEWER',
+        role: userRole,
         status: 'ACTIVE'
       }
     });
@@ -54,6 +74,13 @@ export const login = async (req, res, next) => {
   try {
     const prisma = getPrismaClient();
     const { email, password } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required' });
+    }
 
     const user = await prisma.user.findUnique({
       where: { email }

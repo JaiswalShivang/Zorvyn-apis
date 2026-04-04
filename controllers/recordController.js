@@ -6,12 +6,31 @@ export const createRecord = async (req, res, next) => {
     const { amount, type, category, date, notes } = req.body;
     const userId = req.user.userId;
 
+    if (!amount) {
+      return res.status(400).json({ message: 'Amount is required' });
+    }
+    if (!type) {
+      return res.status(400).json({ message: 'Type is required' });
+    }
+    if (!category) {
+      return res.status(400).json({ message: 'Category is required' });
+    }
+    if (!date) {
+      date = new Date();
+    } else {
+      const parsedDate = Date.parse(date);
+      if (isNaN(parsedDate)) {
+        return res.status(400).json({ message: 'Invalid date format' });
+      }
+      date = new Date(parsedDate);
+    }
+
     const record = await prisma.financialRecord.create({
       data: {
         amount: parseFloat(amount),
         type,
         category,
-        date: new Date(date),
+        date: date,
         notes,
         createdBy: userId
       }
@@ -70,15 +89,45 @@ export const updateRecord = async (req, res, next) => {
     const { id } = req.params;
     const { amount, type, category, date, notes } = req.body;
 
+    const existingRecord = await prisma.financialRecord.findUnique({
+      where: { id }
+    });
+
+    if (!existingRecord) {
+      return res.status(404).json({ message: 'Record not found' });
+    }
+
+    const updateData = {};
+    if (amount) {
+      const parsed = parseFloat(amount);
+      if (isNaN(parsed)) {
+        return res.status(400).json({ message: 'Invalid amount' });
+      }
+      updateData.amount = parsed;
+    }
+    if (type) {
+      if (!['INCOME', 'EXPENSE'].includes(type)) {
+        return res.status(400).json({ message: 'Type must be INCOME or EXPENSE' });
+      }
+      updateData.type = type;
+    }
+    if (category) {
+      updateData.category = category;
+    }
+    if (date) {
+      const parsedDate = Date.parse(date);
+      if (isNaN(parsedDate)) {
+        return res.status(400).json({ message: 'Invalid date format' });
+      }
+      updateData.date = new Date(parsedDate);
+    }
+    if (notes !== undefined) {
+      updateData.notes = notes;
+    }
+
     const updatedRecord = await prisma.financialRecord.update({
       where: { id },
-      data: {
-        ...(amount && { amount: parseFloat(amount) }),
-        ...(type && { type }),
-        ...(category && { category }),
-        ...(date && { date: new Date(date) }),
-        ...(notes && { notes })
-      }
+      data: updateData
     });
 
     res.status(200).json({ message: 'Record updated', record: updatedRecord });
@@ -91,6 +140,14 @@ export const deleteRecord = async (req, res, next) => {
   try {
     const prisma = getPrismaClient();
     const { id } = req.params;
+
+    const existingRecord = await prisma.financialRecord.findUnique({
+      where: { id }
+    });
+
+    if (!existingRecord) {
+      return res.status(404).json({ message: 'Record not found' });
+    }
 
     await prisma.financialRecord.delete({
       where: { id }
