@@ -6,8 +6,9 @@ import { getPrismaClient } from '../config/db.js';
 export const signup = async (req, res, next) => {
   try {
     const prisma = getPrismaClient();
-    const { name, email, password } = req.body;
-    const userRole = 'VIEWER';
+    const { name, email, password, role } = req.body;
+    const validRoles = ['ADMIN', 'ANALYST', 'VIEWER'];
+    const userRole = role && validRoles.includes(role) ? role : 'VIEWER';
 
     if (!name) {
       return res.status(400).json({ message: 'Name is required' });
