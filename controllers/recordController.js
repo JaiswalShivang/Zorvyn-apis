@@ -3,7 +3,7 @@ import { getPrismaClient } from '../config/db.js';
 export const createRecord = async (req, res, next) => {
   try {
     const prisma = getPrismaClient();
-    const { amount, type, category, date, notes } = req.body;
+    const { amount, type, category, date: dateInput, notes } = req.body;
     const userId = req.user.userId;
 
     if (!amount) {
@@ -15,10 +15,9 @@ export const createRecord = async (req, res, next) => {
     if (!category) {
       return res.status(400).json({ message: 'Category is required' });
     }
-    if (!date) {
-      date = new Date();
-    } else {
-      const parsedDate = Date.parse(date);
+    let date = new Date();
+    if (dateInput) {
+      const parsedDate = Date.parse(dateInput);
       if (isNaN(parsedDate)) {
         return res.status(400).json({ message: 'Invalid date format' });
       }
